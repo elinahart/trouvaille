@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Trouvaille</title>
+  <meta name="description" content="De tes inspirations aux pièces de seconde main.">
+  <meta name="theme-color" content="#b4532a">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="/icons/icon-192.png" alt="" width="34" height="34">
+      <div>
+        <h1>Trouvaille</h1>
+        <p class="tagline">tes inspis, en version seconde main</p>
+      </div>
+    </div>
+    <button class="ghost" id="settingsBtn" aria-label="Réglages">Réglages</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="find" aria-selected="true">Trouver</button>
+    <button role="tab" data-tab="board" aria-selected="false">Mood board</button>
+    <button role="tab" data-tab="wish" aria-selected="false">Wishlist</button>
+  </nav>
+
+  <main>
+    <!-- TROUVER -->
+    <section id="tab-find" class="panel">
+      <form id="findForm" class="card upload">
+        <label class="drop" id="drop">
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden>
+          <img id="preview" alt="" hidden>
+          <span id="dropHint">
+            <strong>Dépose une image d’inspi</strong><br>
+            ou clique pour en choisir une · tu peux aussi coller (Ctrl+V)
+          </span>
+        </label>
+        <div class="fields">
+          <label>Précision (facultatif)
+            <input id="notes" maxlength="300" placeholder="ex. je veux surtout la veste, pas le pantalon">
+          </label>
+          <label>Tableau
+            <input id="board" list="boardList" maxlength="40" placeholder="Mes inspis">
+            <datalist id="boardList"></datalist>
+          </label>
+          <button class="primary" id="analyzeBtn" disabled>Trouver des pièces</button>
+          <p class="hint" id="providerHint"></p>
+        </div>
+      </form>
+
+      <div id="result"></div>
+    </section>
+
+    <!-- MOOD BOARD -->
+    <section id="tab-board" class="panel" hidden>
+      <div class="chips" id="boardFilter"></div>
+      <div class="masonry" id="boardGrid"></div>
+      <p class="empty" id="boardEmpty" hidden>Ton mood board est vide. Analyse une première image dans « Trouver ».</p>
+    </section>
+
+    <!-- WISHLIST -->
+    <section id="tab-wish" class="panel" hidden>
+      <form id="wishForm" class="card wish-form">
+        <h2>Ajouter une trouvaille</h2>
+        <label>Lien de l’annonce <input name="url" type="url" required placeholder="https://www.vinted.fr/items/…"></label>
+        <div class="row">
+          <label>Titre <input name="title" maxlength="120" placeholder="Veste en jean oversize"></label>
+          <label class="small">Prix (€) <input name="price" inputmode="decimal" placeholder="18"></label>
+          <label class="small">Taille <input name="size" maxlength="20" placeholder="M"></label>
+        </div>
+        <label>Liée à l’inspi <select name="inspirationId" id="wishInsp"><option value="">— aucune —</option></select></label>
+        <button class="primary">Ajouter</button>
+      </form>
+      <div class="wish-summary" id="wishSummary"></div>
+      <ul class="wish-list" id="wishList"></ul>
+    </section>
+  </main>
+
+  <dialog id="settingsDlg">
+    <form method="dialog" id="settingsForm">
+      <h2>Réglages</h2>
+      <p class="hint">Utilisés pour affiner les recherches.</p>
+      <label>Ma taille <input name="size" maxlength="20" placeholder="ex. 38 / M"></label>
+      <label>Budget max par pièce (€) <input name="budget" inputmode="numeric" placeholder="ex. 40"></label>
+      <menu>
+        <button value="cancel" class="ghost">Annuler</button>
+        <button value="ok" class="primary">Enregistrer</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="detailDlg"><div id="detailBody"></div></dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

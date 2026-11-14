@@ -1,0 +1,5 @@
+# Données personnelles (images, mood board, wishlist) : restent sur la machine
+data/
+node_modules/
+.DS_Store
+*.log
