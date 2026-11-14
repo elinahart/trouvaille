@@ -69,22 +69,13 @@ Pour ajouter une autre IA, il suffit de créer un fichier dans `providers/` qui 
 
 ## Récupérer l'app sur le Mac (via GitHub)
 
-1. Sur GitHub, crée un dépôt vide, par exemple `trouvaille`, en **privé** de préférence.
-2. Ici, ajoute le dépôt distant puis envoie le code :
+Le dépôt est en ligne : **https://github.com/elinahart/trouvaille** (public, sans tes données : `data/` n'est pas versionné).
 
-   ```bash
-   git remote add origin https://github.com/<ton-compte>/trouvaille.git
-   ```
+Sur le Mac, avec Node.js installé (par exemple via `brew install node`) et Claude Code connecté à ton compte :
 
-   ```bash
-   git push -u origin main
-   ```
-
-3. Sur le Mac, avec Node.js installé (par exemple via `brew install node`) et Claude Code connecté à ton compte :
-
-   ```bash
-   git clone https://github.com/<ton-compte>/trouvaille.git && cd trouvaille && npm start
-   ```
+```bash
+git clone https://github.com/elinahart/trouvaille.git && cd trouvaille && npm start
+```
 
 ## Installer comme une app
 
