@@ -1,4 +1,4 @@
-import { bookmarkletCode } from './vinted.js';
+import { bookmarkletCode } from './bookmarklet.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -324,76 +324,154 @@ function openDetail(id) {
 }
 
 /* ---------- Pinterest ---------- */
+// Parcours : « Se connecter avec Pinterest » → page Pinterest (ton compte) → retour → liste de tes tableaux à cocher.
+// La toute première fois seulement, il faut enregistrer une app Pinterest (guide affiché dans la fenêtre).
 $('#pinterestBtn').addEventListener('click', () => openPinterest());
 $('#pinClose').addEventListener('click', () => $('#pinterestDlg').close());
 
-async function openPinterest() {
+async function refreshPinterestButton() {
+  const st = await api('/api/pinterest/status').catch(() => null);
+  $('#pinterestBtn').textContent = st?.connected ? 'Mes tableaux Pinterest' : 'Se connecter avec Pinterest';
+  return st;
+}
+
+async function openPinterest({ showSetup = false } = {}) {
   if (!$('#pinterestDlg').open) $('#pinterestDlg').showModal();
   const box = $('#pinAccount');
   box.innerHTML = '<p class="hint">Chargement…</p>';
   const st = await api('/api/pinterest/status').catch((e) => ({ error: e.message }));
   if (st.error) { box.innerHTML = `<p class="error">${esc(st.error)}</p>`; return; }
 
-  if (!st.configured) {
+  // 1) Pas encore connectée : le gros bouton.
+  if (!st.connected && !showSetup) {
     box.innerHTML = `
-      <ol class="steps">
-        <li>Va sur <a href="https://developers.pinterest.com/apps/" target="_blank" rel="noopener">developers.pinterest.com/apps</a>, connecte-toi et crée une app (usage perso).</li>
-        <li>Dans les réglages de l’app, ajoute cette <strong>adresse de redirection</strong> :
-          <code class="copy" title="Cliquer pour copier">${esc(st.redirectUri)}</code></li>
-        <li>Copie l’<strong>App ID</strong> et la <strong>clé secrète</strong> ci-dessous. Elles restent sur ton ordinateur.</li>
-      </ol>
-      <form id="pinConfigForm" class="grid-form">
-        <label>App ID <input name="clientId" inputmode="numeric" autocomplete="off" required></label>
-        <label>Clé secrète <input name="clientSecret" type="password" autocomplete="off" required></label>
-        <button class="primary">Enregistrer</button>
-      </form>`;
+      <div class="connect">
+        <button class="pinterest-btn" id="pinConnect"><span aria-hidden="true">P</span> Se connecter avec Pinterest</button>
+        <p class="hint">Tu valides sur Pinterest avec ton compte, puis tu choisis les tableaux à importer.</p>
+        ${st.configured ? '<button class="link" id="pinReset">Refaire la mise en place</button>' : ''}
+      </div>`;
+    box.querySelector('#pinConnect').onclick = () => {
+      if (st.configured) location.href = '/auth/pinterest';
+      else openPinterest({ showSetup: true });
+    };
+    box.querySelector('#pinReset')?.addEventListener('click', resetPinterestSetup);
+    return;
+  }
+
+  // 2) Première fois : mise en place unique.
+  if (!st.connected) {
+    box.innerHTML = `
+      <div class="setup">
+        <p><strong>Première connexion : mise en place unique (≈ 5 min).</strong><br>
+        Pinterest n’autorise ce bouton qu’aux apps enregistrées chez eux. Tu ne le fais qu’une fois, ensuite c’est juste le bouton.</p>
+        <ol class="steps">
+          <li>Ouvre <a href="https://developers.pinterest.com/apps/" target="_blank" rel="noopener">developers.pinterest.com/apps</a> et connecte-toi avec ton compte Pinterest. S’il te demande un compte professionnel (gratuit), accepte.</li>
+          <li>Clique sur <em>Connecter une app</em> / <em>Créer une app</em>. Nom : « Trouvaille », usage : personnel.</li>
+          <li>Dans l’app, champ <em>URI de redirection</em>, colle :
+            <code class="copy" title="Cliquer pour copier">${esc(st.redirectUri)}</code></li>
+          <li>Copie l’<strong>ID de l’app</strong> et la <strong>clé secrète</strong> ici. Elles restent sur ton ordinateur et ne s’affichent plus jamais.</li>
+        </ol>
+        <form id="pinConfigForm" class="grid-form">
+          <label>ID de l’app <input name="clientId" inputmode="numeric" autocomplete="off" required></label>
+          <label>Clé secrète de l’app <input name="clientSecret" type="password" autocomplete="off" required></label>
+          <div class="dlg-actions">
+            <button type="button" class="ghost" id="pinBack">Retour</button>
+            <button class="primary">Enregistrer et se connecter</button>
+          </div>
+        </form>
+      </div>`;
     box.querySelector('.copy').onclick = (e) => navigator.clipboard?.writeText(e.target.textContent).then(() => toast('Adresse copiée'));
+    box.querySelector('#pinBack').onclick = () => openPinterest();
     box.querySelector('#pinConfigForm').onsubmit = async (e) => {
       e.preventDefault();
       try {
         await api('/api/pinterest/config', { method: 'PUT', body: Object.fromEntries(new FormData(e.target)) });
-        openPinterest();
+        location.href = '/auth/pinterest';
       } catch (err) { toast(err.message); }
     };
     return;
   }
 
-  if (!st.connected) {
-    box.innerHTML = `
-      <p>Ton app Pinterest est prête (App ID ${esc(st.clientId)}).</p>
-      <div class="dlg-actions">
-        <a class="primary" href="/auth/pinterest" style="text-decoration:none">Se connecter à Pinterest</a>
-        <button class="link" id="pinReconfig">Changer d’app</button>
-      </div>`;
-    box.querySelector('#pinReconfig').onclick = () => reconfigure();
+  // 3) Connectée : choix des tableaux.
+  box.innerHTML = `
+    <p class="connected">✓ Connectée${st.username ? ` en tant que <strong>${esc(st.username)}</strong>` : ''} · <button class="link" id="pinLogout">Se déconnecter</button></p>
+    <p class="hint" id="pinLoading">Chargement de tes tableaux…</p>`;
+  box.querySelector('#pinLogout').onclick = async () => {
+    await api('/api/pinterest/connection', { method: 'DELETE' });
+    await refreshPinterestButton();
+    openPinterest();
+  };
+  let boardsList;
+  try {
+    boardsList = await api('/api/pinterest/boards');
+  } catch (err) {
+    box.querySelector('#pinLoading').outerHTML = `<p class="error">${esc(err.message)}</p>`;
     return;
   }
-
-  box.innerHTML = `<p>Connectée${st.username ? ` en tant que <strong>${esc(st.username)}</strong>` : ''}. <button class="link" id="pinLogout">Se déconnecter</button></p>
-    <p class="hint">Chargement de tes tableaux…</p>`;
-  box.querySelector('#pinLogout').onclick = async () => { await api('/api/pinterest/connection', { method: 'DELETE' }); openPinterest(); };
-  try {
-    const boardsList = await api('/api/pinterest/boards');
-    box.querySelector('.hint').outerHTML = boardsList.length
-      ? `<ul class="pin-boards">${boardsList.map((b) => `
-          <li>
-            ${b.cover ? `<img src="${esc(b.cover)}" alt="" referrerpolicy="no-referrer">` : '<span class="ph"></span>'}
-            <div><strong>${esc(b.name)}</strong><small>${b.pinCount ?? '?'} épingles${b.privacy === 'SECRET' ? ' · secret' : ''}</small></div>
-            <button class="primary small-btn" data-board="${esc(b.id)}" data-name="${esc(b.name)}">Importer</button>
-          </li>`).join('')}</ul>`
-      : '<p class="hint">Aucun tableau trouvé sur ce compte.</p>';
-    box.querySelectorAll('[data-board]').forEach((b) =>
-      b.addEventListener('click', () => runImport(b, '/api/pinterest/import', { boardId: b.dataset.board, boardName: b.dataset.name })),
-    );
-  } catch (err) {
-    box.querySelector('.hint').outerHTML = `<p class="error">${esc(err.message)}</p>`;
+  if (!boardsList.length) {
+    box.querySelector('#pinLoading').outerHTML = '<p class="hint">Aucun tableau sur ce compte.</p>';
+    return;
   }
+  const imported = new Set(state.inspirations.map((i) => i.board));
+  box.querySelector('#pinLoading').outerHTML = `
+    <h3>Choisis tes tableaux</h3>
+    <ul class="pin-boards">${boardsList.map((b, n) => `
+      <li>
+        <label class="board-pick">
+          <input type="checkbox" data-n="${n}" aria-label="${esc(b.name)}">
+          ${b.cover ? `<img src="${esc(b.cover)}" alt="" referrerpolicy="no-referrer">` : '<span class="ph"></span>'}
+          <span><strong>${esc(b.name)}</strong><small>${b.pinCount ?? '?'} épingles${b.privacy === 'SECRET' ? ' · secret' : ''}${imported.has(b.name) ? ' · déjà importé' : ''}</small></span>
+        </label>
+      </li>`).join('')}</ul>
+    <div class="dlg-actions">
+      <button type="button" class="link" id="pinAll">Tout cocher</button>
+      <button class="primary" id="pinImport" disabled>Importer</button>
+    </div>
+    <p class="hint" id="pinProgress"></p>`;
+
+  const boxes = [...box.querySelectorAll('.board-pick input')];
+  const importBtn = box.querySelector('#pinImport');
+  const update = () => {
+    const n = boxes.filter((b) => b.checked).length;
+    importBtn.disabled = !n;
+    importBtn.textContent = n ? `Importer ${n} tableau${n > 1 ? 'x' : ''}` : 'Importer';
+  };
+  boxes.forEach((b) => b.addEventListener('change', update));
+  box.querySelector('#pinAll').onclick = () => {
+    const all = !boxes.every((b) => b.checked);
+    boxes.forEach((b) => (b.checked = all));
+    update();
+  };
+  importBtn.onclick = async () => {
+    const chosen = boxes.filter((b) => b.checked).map((b) => boardsList[Number(b.dataset.n)]);
+    importBtn.disabled = true;
+    const progress = box.querySelector('#pinProgress');
+    let added = 0;
+    let skipped = 0;
+    for (const [i, b] of chosen.entries()) {
+      progress.textContent = `Import de « ${b.name} » (${i + 1}/${chosen.length})…`;
+      try {
+        const r = await api('/api/pinterest/import', { method: 'POST', body: { boardId: b.id, boardName: b.name } });
+        added += r.added;
+        skipped += r.skipped;
+      } catch (err) {
+        toast(`« ${b.name} » : ${err.message}`);
+      }
+    }
+    state.inspirations = await api('/api/inspirations');
+    state.boardFilter = chosen.length === 1 ? chosen[0].name : 'Tous';
+    renderBoard();
+    renderWishInspOptions();
+    progress.textContent = '';
+    toast(`${added} épingle(s) importée(s)${skipped ? `, ${skipped} déjà là` : ''}`);
+    $('#pinterestDlg').close();
+  };
 }
 
-async function reconfigure() {
-  if (!confirm('Oublier cette app Pinterest et sa connexion ?')) return;
+async function resetPinterestSetup() {
+  if (!confirm('Effacer la mise en place Pinterest (ID et clé de l’app) ?')) return;
   await api('/api/pinterest/config', { method: 'DELETE' });
-  openPinterest();
+  openPinterest({ showSetup: true });
 }
 
 async function runImport(btn, url, body) {
@@ -525,6 +603,7 @@ function updateProviderHint() {
   renderWishInspOptions();
   renderWish();
   setupBookmarklets();
+  refreshPinterestButton();
   let tab = 'find';
   try { tab = localStorage.getItem('tab') || 'find'; } catch {}
 

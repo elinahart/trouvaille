@@ -13,20 +13,22 @@ Tes données restent sur ta machine, dans `data/`, qui n'est pas versionné. Ça
 ## Installer le favori « Envoyer à Trouvaille »
 
 1. Ouvre Trouvaille, puis **Réglages**.
-2. Glisse le bouton « 💧 Envoyer à Trouvaille » dans ta barre de favoris. Pour l'afficher : Ctrl+Maj+B, ou Cmd+Maj+B sur Mac.
+2. Glisse le bouton « 💧 Envoyer à Trouvaille » (pour Vinted) dans ta barre de favoris. Pour l'afficher : Ctrl+Maj+B, ou Cmd+Maj+B sur Mac.
 3. Sur une page de résultats Vinted, clique sur ce favori. Trouvaille s'ouvre, tu choisis l'inspi, et tu ajoutes les pièces.
 
 Le favori contient l'adresse de l'app. Si tu changes de port ou de machine, réinstalle-le depuis les Réglages.
 
 ## Pinterest
 
-Dans le **Mood board**, ouvre « Importer de Pinterest ». Tu as deux possibilités :
+Dans le **Mood board**, clique sur **« Se connecter avec Pinterest »**. Tu valides sur Pinterest avec ton compte, puis tu reviens dans Trouvaille et tu **coches les tableaux** à importer, secrets compris.
 
-- **Tableau public, par son lien** : aucune configuration. Colle le lien d'un tableau et l'app récupère ses ~25 dernières épingles via le flux RSS public de Pinterest. Relance l'import pour récupérer les nouvelles ; les doublons sont ignorés.
-- **Avec ton compte** : tu as accès à tous tes tableaux, y compris les secrets. Il faut une fois :
-  1. Crée une app sur [developers.pinterest.com/apps](https://developers.pinterest.com/apps/).
-  2. Ajoute l'adresse de redirection `http://localhost:5180/auth/pinterest/callback`.
-  3. Colle l'App ID et la clé secrète dans Trouvaille, puis clique sur « Se connecter à Pinterest ».
+La toute première fois seulement, Pinterest exige une « app » enregistrée chez eux. Il n'existe pas d'autre façon d'avoir ce bouton. Le guide s'affiche dans la fenêtre :
+
+1. Va sur [developers.pinterest.com/apps](https://developers.pinterest.com/apps/), connecte-toi et crée une app « Trouvaille ». Si Pinterest demande un compte professionnel, il est gratuit.
+2. Ajoute l'URI de redirection `http://localhost:5180/auth/pinterest/callback`.
+3. Colle l'ID et la clé secrète de l'app dans Trouvaille. Ils restent dans `data/pinterest.json`, sur ton ordinateur, et ne s'affichent plus.
+
+Ensuite, c'est seulement le bouton. Sans connexion, tu peux aussi importer un **tableau public par son lien** (environ les 25 dernières épingles).
 
 Les épingles importées arrivent « à analyser ». Ouvre-en une et clique sur « Analyser et trouver des pièces ».
 

@@ -6,7 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { createApp } from '../server.js';
 import mock from '../providers/mock.js';
-import { parseVintedLabel, bookmarkletCode } from '../public/vinted.js';
+import { parseVintedLabel } from '../public/vinted.js';
+import { bookmarkletCode } from '../public/bookmarklet.js';
 import { boardRssUrl, parseBoardRss, pinFromApi } from '../lib/pinterest.js';
 
 test('parseVintedLabel lit titre, marque, état, taille et prix', () => {

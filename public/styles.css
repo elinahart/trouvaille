@@ -301,6 +301,24 @@ menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; margin: 8
 .howto { border-top: 1px solid var(--glass-line); padding-top: 12px; display: grid; gap: 8px; justify-items: start; }
 
 /* Pinterest */
+.pinterest-btn {
+  display: inline-flex; align-items: center; gap: 10px; justify-content: center;
+  color: #fff; font-weight: 700; border: 1px solid #a3081f; border-radius: 999px; padding: 12px 22px;
+  background: linear-gradient(180deg, #ff6b7d 0%, #e60023 48%, #b8001c 52%, #ff2d4a 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 4px 12px rgba(230, 0, 35, .35);
+  text-shadow: 0 1px 1px rgba(100, 0, 10, .5); position: relative; overflow: hidden;
+}
+.pinterest-btn::before { content: ""; position: absolute; left: 8%; right: 8%; top: 2px; height: 45%; border-radius: 999px; background: linear-gradient(180deg, rgba(255, 255, 255, .7), rgba(255, 255, 255, .05)); pointer-events: none; }
+.pinterest-btn span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #fff; color: #e60023; font: 900 15px Georgia, serif; text-shadow: none; }
+.pinterest-btn.small { padding: 8px 16px; font-size: .9rem; }
+.pinterest-btn:hover { filter: brightness(1.06); }
+.connect { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 8px 0; }
+.connected { margin: 0; }
+.setup { display: grid; gap: 10px; }
+.pin-section.first { border-top: 0; margin-top: 4px; padding-top: 0; }
+.board-pick { display: grid; grid-template-columns: auto 48px minmax(0, 1fr); gap: 10px; align-items: center; cursor: pointer; color: var(--ink); font-weight: 400; }
+.board-pick input { width: 20px; height: 20px; accent-color: var(--aqua-mid); }
+.board-pick small { display: block; color: var(--muted); }
 .dlg-head { display: flex; justify-content: space-between; align-items: center; }
 .pin-section { border-top: 1px solid var(--glass-line); padding-top: 12px; margin-top: 12px; display: grid; gap: 8px; }
 .inline-form { display: flex; gap: 8px; }
@@ -309,7 +327,7 @@ menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; margin: 8
 .steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
 code.copy { display: inline-block; background: var(--field); border: 1px solid var(--edge); border-radius: 8px; padding: 2px 8px; cursor: copy; overflow-wrap: anywhere; }
 .pin-boards { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; max-height: 50vh; overflow: auto; }
-.pin-boards li { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--chip); border: 1px solid var(--glass-line); border-radius: 14px; padding: 8px; }
+.pin-boards li { display: block; background: var(--chip); border: 1px solid var(--glass-line); border-radius: 14px; padding: 8px; }
 .pin-boards img, .pin-boards .ph { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; background: var(--sky-1); }
 .pin-boards small { display: block; color: var(--muted); }
 @media (max-width: 720px) {

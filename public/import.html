@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Trouvaille · import Vinted</title>
+  <title>Trouvaille · import</title>
   <meta name="theme-color" content="#1aa7ec">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="stylesheet" href="/styles.css">
@@ -14,25 +14,26 @@
       <img src="/icons/icon-192.png" alt="" width="34" height="34">
       <div>
         <h1>Trouvaille</h1>
-        <p class="tagline">pièces reçues depuis Vinted</p>
+        <p class="tagline" id="tagline">import</p>
       </div>
     </div>
     <a class="ghost" href="/" style="text-decoration:none">Ouvrir l’app</a>
   </header>
   <main>
-    <form class="card" id="importForm">
-      <h2 id="count">Pièces reçues</h2>
-      <label>Les ranger avec l’inspi
-        <select id="insp" required></select>
+    <form class="card" id="importForm" hidden>
+      <h2 id="count"></h2>
+      <label id="inspField">Les ranger avec l’inspi
+        <select id="insp"></select>
       </label>
-      <p class="hint">Décoche celles qui ne te plaisent pas, puis ajoute-les. Tu pourras ensuite les classer par ressemblance.</p>
+      <p class="hint" id="hint"></p>
       <div class="finds-grid" id="grid"></div>
       <div class="dlg-actions">
         <button type="button" class="ghost" id="toggleAll">Tout décocher</button>
-        <button class="primary" id="addBtn">Ajouter à l’inspi</button>
+        <button class="primary" id="addBtn">Ajouter</button>
       </div>
     </form>
-    <p class="empty" id="empty" hidden>Rien reçu. Utilise le favori « Envoyer à Trouvaille » sur une page de résultats Vinted.</p>
+
+    <p class="empty" id="empty" hidden>Rien reçu. Utilise le favori « 💧 Envoyer à Trouvaille » sur une page de résultats Vinted.</p>
   </main>
   <div id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="/import.js"></script>
