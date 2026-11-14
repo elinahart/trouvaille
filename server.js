@@ -166,12 +166,12 @@ export async function createApp({ dataDir = process.env.DATA_DIR || path.join(RO
         throw httpError(404, 'Route inconnue');
       }
       if (url.pathname.startsWith('/images/')) {
-        return sendFile(res, path.join(imagesDir, path.basename(url.pathname)));
+        return await sendFile(res, path.join(imagesDir, path.basename(url.pathname)));
       }
       const rel = url.pathname === '/' ? 'index.html' : path.normalize(url.pathname).replace(/^([/\\])+/, '');
       const file = path.join(PUBLIC, rel);
       if (!file.startsWith(PUBLIC)) throw httpError(403, 'Interdit');
-      return sendFile(res, file);
+      return await sendFile(res, file);
     } catch (e) {
       const status = e.status || 500;
       if (status === 500) console.error(e);

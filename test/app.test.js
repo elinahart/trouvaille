@@ -40,6 +40,8 @@ test('lien Vinted : texte encodé et budget', () => {
 test('analyse → mood board → wishlist', async () => {
   await withServer(async (call) => {
     assert.equal((await call('/api/status')).data.provider, 'mock');
+    assert.equal((await call('/n-existe-pas.png')).status, 404, 'un 404 ne doit pas faire planter le serveur');
+    assert.equal((await call('/images/absent.jpg')).status, 404);
 
     const bad = await call('/api/analyze', 'POST', { image: 'pas une image' });
     assert.equal(bad.status, 400);
