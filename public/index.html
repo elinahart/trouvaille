@@ -59,7 +59,10 @@
 
     <!-- MOOD BOARD -->
     <section id="tab-board" class="panel" hidden>
-      <div class="chips" id="boardFilter"></div>
+      <div class="toolbar">
+        <div class="chips" id="boardFilter"></div>
+        <button class="primary small-btn" id="pinterestBtn">Importer de Pinterest</button>
+      </div>
       <div class="masonry" id="boardGrid"></div>
       <p class="empty" id="boardEmpty" hidden>Ton mood board est vide. Analyse une première image dans « Trouver ».</p>
     </section>
@@ -88,6 +91,11 @@
       <p class="hint">Utilisés pour affiner les recherches.</p>
       <label>Ma taille <input name="size" maxlength="20" placeholder="ex. 38 / M"></label>
       <label>Budget max par pièce (€) <input name="budget" inputmode="numeric" placeholder="ex. 40"></label>
+      <div class="howto">
+        <h3>Bouton « Envoyer à Trouvaille »</h3>
+        <p class="hint">Glisse ce bouton dans ta barre de favoris. Sur une page de résultats Vinted, clique dessus : les annonces affichées arrivent dans Trouvaille, en photos, à côté de ton inspi.</p>
+        <a class="bookmarklet" href="#" draggable="true">💧 Envoyer à Trouvaille</a>
+      </div>
       <menu>
         <button value="cancel" class="ghost">Annuler</button>
         <button value="ok" class="primary">Enregistrer</button>
@@ -96,6 +104,28 @@
   </dialog>
 
   <dialog id="detailDlg"><div id="detailBody"></div></dialog>
+
+  <dialog id="pinterestDlg">
+    <div class="dlg-head">
+      <h2>Importer de Pinterest</h2>
+      <button class="link" id="pinClose" aria-label="Fermer">✕</button>
+    </div>
+
+    <section class="pin-section">
+      <h3>Avec ton compte Pinterest</h3>
+      <p class="hint">Accès à tous tes tableaux, y compris les secrets.</p>
+      <div id="pinAccount"></div>
+    </section>
+
+    <section class="pin-section">
+      <h3>Tableau public, par son lien</h3>
+      <p class="hint">Sans connexion. Récupère les ~25 dernières épingles ; relance pour les nouvelles.</p>
+      <form id="pinPublicForm" class="inline-form">
+        <input name="url" type="url" required placeholder="https://www.pinterest.fr/toncompte/ton-tableau/">
+        <button class="primary">Importer</button>
+      </form>
+    </section>
+  </dialog>
 
   <div id="toast" role="status" aria-live="polite"></div>
 

@@ -61,3 +61,34 @@ export function buildPrompt({ notes, size, budget } = {}) {
   if (notes) lines.push(`Précision de l’utilisatrice : ${notes}`);
   return lines.join('\n');
 }
+
+// Classement des pièces trouvées sur Vinted par ressemblance avec l'inspiration.
+// Chaque fournisseur peut exposer : rank({ imagePath, analysis, items: [{ id, label }] }) -> [{ id, score, raison }]
+export const RANK_SCHEMA = {
+  type: 'object',
+  properties: {
+    classement: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          score: { type: 'integer', description: 'Ressemblance avec l’inspiration, de 0 à 100' },
+          raison: { type: 'string', description: 'Quelques mots : ce qui colle ou pas' },
+        },
+        required: ['id', 'score', 'raison'],
+      },
+    },
+  },
+  required: ['classement'],
+};
+
+export function buildRankPrompt({ analysis, items }) {
+  return [
+    'Voici une image d’inspiration mode et une liste d’annonces Vinted (titre, marque, état, taille, prix).',
+    analysis?.piece ? `Pièce recherchée : ${analysis.piece} — ${analysis.description || ''}` : '',
+    'Note chaque annonce de 0 à 100 selon sa ressemblance probable avec l’inspiration (type de pièce, coupe, couleur, matière, style).',
+    'Annonces :',
+    ...items.map((i) => `- id=${i.id} : ${i.label}`),
+  ].filter(Boolean).join('\n');
+}

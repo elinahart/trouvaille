@@ -1,3 +1,5 @@
+import { bookmarkletCode } from './vinted.js';
+
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -19,8 +21,16 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => t.classList.remove('show'), 2600);
+  toast.timer = setTimeout(() => t.classList.remove('show'), 3200);
 }
+
+const remember = (id) => { try { localStorage.setItem('lastInsp', id); } catch {} };
+const replaceInsp = (insp) => {
+  const i = state.inspirations.findIndex((x) => x.id === insp.id);
+  if (i >= 0) state.inspirations[i] = insp;
+  else state.inspirations.unshift(insp);
+  return insp;
+};
 
 /* ---------- Onglets ---------- */
 function showTab(name) {
@@ -60,21 +70,21 @@ async function loadImage(file) {
   $('#analyzeBtn').disabled = false;
 }
 
-/* ---------- Analyse ---------- */
+/* ---------- Analyse d'une nouvelle image ---------- */
+const loadingHtml = (what) => `<div class="card loading"><span class="spinner"></span>${what} avec ${esc(providerLabel())}… (10 à 30 s)</div>`;
+
 $('#findForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!state.imageData) return;
   const btn = $('#analyzeBtn');
   btn.disabled = true;
-  $('#result').innerHTML = `<div class="card loading"><span class="spinner"></span>Analyse en cours avec ${esc(providerLabel())}… (10 à 30 s)</div>`;
+  $('#result').innerHTML = loadingHtml('Analyse en cours');
   try {
-    const insp = await api('/api/analyze', {
+    const insp = replaceInsp(await api('/api/analyze', {
       method: 'POST',
       body: { image: state.imageData, notes: $('#notes').value, board: $('#board').value },
-    });
-    state.inspirations.unshift(insp);
-    $('#result').innerHTML = `<div class="card">${renderAnalysis(insp)}</div>`;
-    bindAnalysisActions($('#result'), insp);
+    }));
+    showResult(insp);
     renderBoard();
     renderWishInspOptions();
     resetUpload();
@@ -84,6 +94,12 @@ $('#findForm').addEventListener('submit', async (e) => {
     btn.disabled = !state.imageData;
   }
 });
+
+function showResult(insp) {
+  remember(insp.id);
+  $('#result').innerHTML = `<div class="card">${renderAnalysis(insp)}</div>`;
+  bindAnalysisActions($('#result'), insp, showResult);
+}
 
 function resetUpload() {
   state.imageData = null;
@@ -98,43 +114,143 @@ function providerLabel() {
   return { 'claude-cli': 'Claude (ton compte)', luna: 'Luna', mock: 'le mode test' }[state.provider] || state.provider;
 }
 
+/* ---------- Vue d'une inspiration (résultat + détail) ---------- */
 function renderAnalysis(insp) {
-  const a = insp.analysis || {};
+  const a = insp.analysis;
   const dots = (n) => '●'.repeat(n) + '○'.repeat(Math.max(0, 5 - n));
+  const head = a
+    ? `<h2>${esc(a.piece)}</h2>
+       <p class="hint">${esc(a.categorie)} · tableau « ${esc(insp.board)} »</p>
+       <p>${esc(a.description)}</p>
+       <div class="tags">${[...(a.style || []), ...(a.matieres || [])].map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+       <div>${(a.couleurs || []).map((c) => `<span class="swatch"><i style="background:${/^#[0-9a-f]{3,8}$/i.test(c.hex) ? c.hex : 'transparent'}"></i>${esc(c.nom)}</span>`).join('')}</div>`
+    : `<h2>${esc(insp.pinTitle || 'Inspi à analyser')}</h2>
+       <p class="hint">tableau « ${esc(insp.board)} »${insp.pinUrl ? ` · <a href="${esc(insp.pinUrl)}" target="_blank" rel="noopener">voir l’épingle</a>` : ''}</p>
+       <p>Cette inspi n’est pas encore analysée.</p>
+       <button class="primary" data-act="analyze">Analyser et trouver des pièces</button>`;
+
+  const searches = a
+    ? `<h3 class="section-title">Rechercher sur Vinted</h3>
+       <ul class="searches">
+         ${(insp.recherches || []).map((r) => `
+           <li class="search">
+             <div>
+               <strong>${esc(r.requete)}</strong>
+               <small>${esc(r.pourquoi)}</small>
+               <div class="dots" title="Proximité avec ton inspi : ${r.proximite}/5">${dots(r.proximite)}</div>
+             </div>
+             <a class="go" href="${esc(r.url)}" target="_blank" rel="noopener" data-act="open-search">Voir sur Vinted ↗</a>
+           </li>`).join('')}
+       </ul>`
+    : '';
+
   return `
     <div class="analysis">
       <img src="${esc(insp.image)}" alt="">
-      <div>
-        <h2>${esc(a.piece)}</h2>
-        <p class="hint">${esc(a.categorie)} · tableau « ${esc(insp.board)} »</p>
-        <p>${esc(a.description)}</p>
-        <div class="tags">${[...(a.style || []), ...(a.matieres || [])].map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>
-        <div>${(a.couleurs || []).map((c) => `<span class="swatch"><i style="background:${/^#[0-9a-f]{3,8}$/i.test(c.hex) ? c.hex : 'transparent'}"></i>${esc(c.nom)}</span>`).join('')}</div>
-        <h3 style="margin-top:16px">Pièces proposées sur Vinted</h3>
-        <ul class="searches">
-          ${(insp.recherches || []).map((r) => `
-            <li class="search">
-              <div>
-                <strong>${esc(r.requete)}</strong>
-                <small>${esc(r.pourquoi)}</small>
-                <div class="dots" title="Proximité avec ton inspi : ${r.proximite}/5">${dots(r.proximite)}</div>
-              </div>
-              <a class="go" href="${esc(r.url)}" target="_blank" rel="noopener">Voir sur Vinted ↗</a>
-            </li>`).join('')}
-        </ul>
-        <div class="dlg-actions">
-          <button class="ghost" data-act="wish">J’ai trouvé une pièce → wishlist</button>
-        </div>
+      <div>${head}${searches}</div>
+    </div>
+    ${renderFinds(insp)}`;
+}
+
+function renderFinds(insp) {
+  const finds = insp.finds || [];
+  const help = `<p class="hint">Sur une page de résultats Vinted, clique sur ton favori
+      <a class="bookmarklet small" href="#" draggable="true">💧 Envoyer à Trouvaille</a>
+      (glisse-le d’abord dans ta barre de favoris) : les annonces arrivent ici en photos.</p>`;
+  if (!finds.length) {
+    return `<div class="finds"><h3 class="section-title">Pièces trouvées</h3>${help}</div>`;
+  }
+  const ranked = finds.some((f) => f.score != null);
+  return `
+    <div class="finds">
+      <div class="finds-head">
+        <h3 class="section-title">Pièces trouvées <span class="count">${finds.length}</span></h3>
+        <button class="primary small-btn" data-act="rank">${ranked ? 'Reclasser' : 'Trier par ressemblance'}</button>
       </div>
+      <div class="finds-grid">
+        ${finds.map((f) => `
+          <article class="find">
+            ${f.score != null ? `<span class="score" title="${esc(f.raison)}">${f.score}%</span>` : ''}
+            <a href="${esc(f.url)}" target="_blank" rel="noopener"><img src="${esc(f.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer"></a>
+            <div class="find-body">
+              <strong>${f.price != null ? f.price.toFixed(2) + ' €' : ''}</strong>
+              <span>${esc(f.title)}</span>
+              <small>${[f.brand, f.size, f.condition].filter(Boolean).map(esc).join(' · ')}</small>
+              ${f.raison ? `<small class="why">${esc(f.raison)}</small>` : ''}
+            </div>
+            <div class="find-actions">
+              <button class="ghost tiny" data-wish="${esc(f.id)}" title="Ajouter à la wishlist">♡</button>
+              <button class="link" data-unfind="${esc(f.id)}" title="Retirer">✕</button>
+            </div>
+          </article>`).join('')}
+      </div>
+      ${help}
     </div>`;
 }
 
-function bindAnalysisActions(root, insp) {
-  root.querySelector('[data-act="wish"]')?.addEventListener('click', () => {
-    $('#detailDlg').close();
-    showTab('wish');
-    $('#wishInsp').value = insp.id;
-    $('#wishForm [name=url]').focus();
+function bindAnalysisActions(root, insp, rerender) {
+  setupBookmarklets(root);
+  root.querySelectorAll('[data-act="open-search"]').forEach((a) => a.addEventListener('click', () => remember(insp.id)));
+
+  root.querySelector('[data-act="analyze"]')?.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    e.target.textContent = 'Analyse en cours… (10 à 30 s)';
+    try {
+      const updated = replaceInsp(await api(`/api/inspirations/${insp.id}/analyze`, { method: 'POST', body: {} }));
+      renderBoard();
+      renderWishInspOptions();
+      rerender(updated);
+    } catch (err) {
+      toast(err.message);
+      e.target.disabled = false;
+      e.target.textContent = 'Réessayer l’analyse';
+    }
+  });
+
+  root.querySelector('[data-act="rank"]')?.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    e.target.textContent = 'Classement… (10 à 30 s)';
+    try {
+      rerender(replaceInsp(await api(`/api/inspirations/${insp.id}/rank`, { method: 'POST', body: {} })));
+      toast('Pièces classées de la plus ressemblante à la moins');
+    } catch (err) {
+      toast(err.message);
+      e.target.disabled = false;
+      e.target.textContent = 'Trier par ressemblance';
+    }
+  });
+
+  root.querySelectorAll('[data-unfind]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      rerender(replaceInsp(await api(`/api/inspirations/${insp.id}/finds/${b.dataset.unfind}`, { method: 'DELETE' })));
+    }),
+  );
+
+  root.querySelectorAll('[data-wish]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const f = (insp.finds || []).find((x) => x.id === b.dataset.wish);
+      if (!f) return;
+      const item = await api('/api/wishlist', {
+        method: 'POST',
+        body: { url: f.url, title: f.title, price: f.price, size: f.size, photo: f.photo, inspirationId: insp.id },
+      });
+      if (!state.wishlist.some((w) => w.id === item.id)) state.wishlist.unshift(item);
+      renderWish();
+      b.textContent = '♥';
+      toast('Ajoutée à la wishlist');
+    }),
+  );
+}
+
+/* ---------- Favori « Envoyer à Trouvaille » ---------- */
+function setupBookmarklets(root = document) {
+  const code = bookmarkletCode(location.origin);
+  root.querySelectorAll('a.bookmarklet').forEach((a) => {
+    a.setAttribute('href', code);
+    a.onclick = (e) => {
+      e.preventDefault();
+      toast('Glisse ce bouton dans ta barre de favoris, puis utilise-le sur Vinted');
+    };
   });
 }
 
@@ -153,7 +269,11 @@ function renderBoard() {
   const items = state.inspirations.filter((i) => state.boardFilter === 'Tous' || i.board === state.boardFilter);
   $('#boardEmpty').hidden = items.length > 0;
   $('#boardGrid').innerHTML = items
-    .map((i) => `<button class="pin" data-id="${i.id}"><img src="${esc(i.image)}" alt="" loading="lazy"><div><strong>${esc(i.analysis?.piece)}</strong><br><small>${esc(i.board)}</small></div></button>`)
+    .map((i) => {
+      const nFinds = (i.finds || []).length;
+      const badge = !i.analysis ? '<span class="badge">à analyser</span>' : nFinds ? `<span class="badge ok">${nFinds} pièce(s)</span>` : '';
+      return `<button class="pin" data-id="${i.id}">${badge}<img src="${esc(i.image)}" alt="" loading="lazy"><div><strong>${esc(i.analysis?.piece || i.pinTitle || 'Inspi')}</strong><br><small>${esc(i.board)}</small></div></button>`;
+    })
     .join('');
 }
 
@@ -172,6 +292,7 @@ $('#boardGrid').addEventListener('click', (e) => {
 function openDetail(id) {
   const insp = state.inspirations.find((i) => i.id === id);
   if (!insp) return;
+  remember(id);
   const body = $('#detailBody');
   body.innerHTML = `${renderAnalysis(insp)}
     <div class="dlg-actions">
@@ -181,12 +302,12 @@ function openDetail(id) {
       </span>
       <button class="primary" data-act="close">Fermer</button>
     </div>`;
-  bindAnalysisActions(body, insp);
+  bindAnalysisActions(body, insp, (updated) => { renderBoard(); openDetail(updated.id); });
   body.querySelector('[data-act="close"]').onclick = () => $('#detailDlg').close();
   body.querySelector('[data-act="move"]').onclick = async () => {
     const name = prompt('Nom du tableau', insp.board);
     if (name == null) return;
-    Object.assign(insp, await api(`/api/inspirations/${id}`, { method: 'PATCH', body: { board: name } }));
+    replaceInsp(await api(`/api/inspirations/${id}`, { method: 'PATCH', body: { board: name } }));
     renderBoard();
     openDetail(id);
   };
@@ -202,11 +323,108 @@ function openDetail(id) {
   if (!$('#detailDlg').open) $('#detailDlg').showModal();
 }
 
+/* ---------- Pinterest ---------- */
+$('#pinterestBtn').addEventListener('click', () => openPinterest());
+$('#pinClose').addEventListener('click', () => $('#pinterestDlg').close());
+
+async function openPinterest() {
+  if (!$('#pinterestDlg').open) $('#pinterestDlg').showModal();
+  const box = $('#pinAccount');
+  box.innerHTML = '<p class="hint">Chargement…</p>';
+  const st = await api('/api/pinterest/status').catch((e) => ({ error: e.message }));
+  if (st.error) { box.innerHTML = `<p class="error">${esc(st.error)}</p>`; return; }
+
+  if (!st.configured) {
+    box.innerHTML = `
+      <ol class="steps">
+        <li>Va sur <a href="https://developers.pinterest.com/apps/" target="_blank" rel="noopener">developers.pinterest.com/apps</a>, connecte-toi et crée une app (usage perso).</li>
+        <li>Dans les réglages de l’app, ajoute cette <strong>adresse de redirection</strong> :
+          <code class="copy" title="Cliquer pour copier">${esc(st.redirectUri)}</code></li>
+        <li>Copie l’<strong>App ID</strong> et la <strong>clé secrète</strong> ci-dessous. Elles restent sur ton ordinateur.</li>
+      </ol>
+      <form id="pinConfigForm" class="grid-form">
+        <label>App ID <input name="clientId" inputmode="numeric" autocomplete="off" required></label>
+        <label>Clé secrète <input name="clientSecret" type="password" autocomplete="off" required></label>
+        <button class="primary">Enregistrer</button>
+      </form>`;
+    box.querySelector('.copy').onclick = (e) => navigator.clipboard?.writeText(e.target.textContent).then(() => toast('Adresse copiée'));
+    box.querySelector('#pinConfigForm').onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        await api('/api/pinterest/config', { method: 'PUT', body: Object.fromEntries(new FormData(e.target)) });
+        openPinterest();
+      } catch (err) { toast(err.message); }
+    };
+    return;
+  }
+
+  if (!st.connected) {
+    box.innerHTML = `
+      <p>Ton app Pinterest est prête (App ID ${esc(st.clientId)}).</p>
+      <div class="dlg-actions">
+        <a class="primary" href="/auth/pinterest" style="text-decoration:none">Se connecter à Pinterest</a>
+        <button class="link" id="pinReconfig">Changer d’app</button>
+      </div>`;
+    box.querySelector('#pinReconfig').onclick = () => reconfigure();
+    return;
+  }
+
+  box.innerHTML = `<p>Connectée${st.username ? ` en tant que <strong>${esc(st.username)}</strong>` : ''}. <button class="link" id="pinLogout">Se déconnecter</button></p>
+    <p class="hint">Chargement de tes tableaux…</p>`;
+  box.querySelector('#pinLogout').onclick = async () => { await api('/api/pinterest/connection', { method: 'DELETE' }); openPinterest(); };
+  try {
+    const boardsList = await api('/api/pinterest/boards');
+    box.querySelector('.hint').outerHTML = boardsList.length
+      ? `<ul class="pin-boards">${boardsList.map((b) => `
+          <li>
+            ${b.cover ? `<img src="${esc(b.cover)}" alt="" referrerpolicy="no-referrer">` : '<span class="ph"></span>'}
+            <div><strong>${esc(b.name)}</strong><small>${b.pinCount ?? '?'} épingles${b.privacy === 'SECRET' ? ' · secret' : ''}</small></div>
+            <button class="primary small-btn" data-board="${esc(b.id)}" data-name="${esc(b.name)}">Importer</button>
+          </li>`).join('')}</ul>`
+      : '<p class="hint">Aucun tableau trouvé sur ce compte.</p>';
+    box.querySelectorAll('[data-board]').forEach((b) =>
+      b.addEventListener('click', () => runImport(b, '/api/pinterest/import', { boardId: b.dataset.board, boardName: b.dataset.name })),
+    );
+  } catch (err) {
+    box.querySelector('.hint').outerHTML = `<p class="error">${esc(err.message)}</p>`;
+  }
+}
+
+async function reconfigure() {
+  if (!confirm('Oublier cette app Pinterest et sa connexion ?')) return;
+  await api('/api/pinterest/config', { method: 'DELETE' });
+  openPinterest();
+}
+
+async function runImport(btn, url, body) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Import…';
+  try {
+    const r = await api(url, { method: 'POST', body });
+    state.inspirations = await api('/api/inspirations');
+    state.boardFilter = r.board || 'Tous';
+    renderBoard();
+    renderWishInspOptions();
+    toast(`${r.added} épingle(s) importée(s)${r.skipped ? `, ${r.skipped} déjà là` : ''}${r.failed ? `, ${r.failed} en échec` : ''}`);
+    btn.textContent = 'Importé ✓';
+  } catch (err) {
+    toast(err.message);
+    btn.textContent = label;
+    btn.disabled = false;
+  }
+}
+
+$('#pinPublicForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  runImport(e.submitter || $('#pinPublicForm button'), '/api/pinterest/import-public', { url: e.target.url.value });
+});
+
 /* ---------- Wishlist ---------- */
 function renderWishInspOptions() {
   const sel = $('#wishInsp');
   const cur = sel.value;
-  sel.innerHTML = `<option value="">— aucune —</option>` + state.inspirations.map((i) => `<option value="${i.id}">${esc(i.analysis?.piece)} (${esc(i.board)})</option>`).join('');
+  sel.innerHTML = `<option value="">— aucune —</option>` + state.inspirations.map((i) => `<option value="${i.id}">${esc(i.analysis?.piece || i.pinTitle || 'Inspi')} (${esc(i.board)})</option>`).join('');
   sel.value = cur;
 }
 
@@ -220,11 +438,12 @@ function renderWish() {
   $('#wishList').innerHTML = state.wishlist
     .map((w) => {
       const insp = state.inspirations.find((i) => i.id === w.inspirationId);
+      const thumb = w.photo || insp?.image;
       return `<li class="wish ${esc(w.status)}">
-        ${insp ? `<img src="${esc(insp.image)}" alt="" title="Inspi : ${esc(insp.analysis?.piece)}">` : '<span class="ph"></span>'}
+        ${thumb ? `<img src="${esc(thumb)}" alt="" referrerpolicy="no-referrer">` : '<span class="ph"></span>'}
         <div>
           <a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(w.title)}</a>
-          <div class="meta">${w.price != null ? `${w.price.toFixed(2)} €` : 'prix ?'}${w.size ? ` · ${esc(w.size)}` : ''}${insp ? ` · inspi « ${esc(insp.analysis?.piece)} »` : ''}</div>
+          <div class="meta">${w.price != null ? `${w.price.toFixed(2)} €` : 'prix ?'}${w.size ? ` · ${esc(w.size)}` : ''}${insp ? ` · inspi « ${esc(insp.analysis?.piece || insp.pinTitle || '')} »` : ''}</div>
         </div>
         <div>
           <select data-id="${w.id}" aria-label="Statut">
@@ -241,7 +460,8 @@ $('#wishForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const body = Object.fromEntries(new FormData(e.target));
   try {
-    state.wishlist.unshift(await api('/api/wishlist', { method: 'POST', body }));
+    const item = await api('/api/wishlist', { method: 'POST', body });
+    if (!state.wishlist.some((w) => w.id === item.id)) state.wishlist.unshift(item);
     e.target.reset();
     renderWish();
     toast('Ajoutée à la wishlist');
@@ -271,6 +491,7 @@ $('#settingsBtn').addEventListener('click', () => {
   const f = $('#settingsForm');
   f.size.value = state.settings.size || '';
   f.budget.value = state.settings.budget || '';
+  setupBookmarklets($('#settingsDlg'));
   $('#settingsDlg').showModal();
 });
 $('#settingsDlg').addEventListener('close', async () => {
@@ -303,8 +524,24 @@ function updateProviderHint() {
   renderBoard();
   renderWishInspOptions();
   renderWish();
+  setupBookmarklets();
   let tab = 'find';
   try { tab = localStorage.getItem('tab') || 'find'; } catch {}
+
+  // Retours d'autres pages : import Vinted (?insp=), connexion Pinterest (?pinterest=)
+  const q = new URLSearchParams(location.search);
+  if (q.size) history.replaceState(null, '', '/');
+  if (q.get('insp')) {
+    tab = 'board';
+    showTab(tab);
+    openDetail(q.get('insp'));
+    if (q.get('added') != null) toast(`${q.get('added')} pièce(s) ajoutée(s)`);
+  } else if (q.get('pinterest')) {
+    tab = 'board';
+    showTab(tab);
+    openPinterest();
+    toast({ ok: 'Pinterest connecté ✓', erreur: 'La connexion Pinterest a échoué', config: 'Configure d’abord ton app Pinterest' }[q.get('pinterest')] || '');
+  }
   showTab(tab);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 })();

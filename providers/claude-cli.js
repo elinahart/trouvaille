@@ -3,7 +3,7 @@
 // Prérequis : avoir lancé `claude` une fois et s'être connectée avec son compte.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { ANALYSIS_SCHEMA, buildPrompt } from './index.js';
+import { ANALYSIS_SCHEMA, RANK_SCHEMA, buildPrompt, buildRankPrompt } from './index.js';
 
 const SYSTEM = [
   'Tu es une styliste experte en seconde main et en Vinted.',
@@ -12,35 +12,44 @@ const SYSTEM = [
   'Les couleurs : noms simples en français (ex. "bleu marine") + code hex approximatif.',
 ].join(' ');
 
+const model = () => process.env.CLAUDE_MODEL || 'sonnet';
+
+async function ask({ prompt, imagePath, schema }) {
+  const bin = process.env.CLAUDE_BIN || 'claude';
+  const args = [
+    '-p', `${prompt}\n\nFichier image : ${imagePath}`,
+    '--tools', 'Read',
+    '--allowedTools', 'Read',
+    '--strict-mcp-config',
+    '--disable-slash-commands',
+    '--no-session-persistence',
+    '--model', model(),
+    '--system-prompt', SYSTEM,
+    '--json-schema', JSON.stringify(schema),
+    '--output-format', 'json',
+  ];
+  const out = await run(bin, args, path.dirname(imagePath));
+  let data;
+  try {
+    data = JSON.parse(out);
+  } catch {
+    throw new Error('Réponse illisible de la CLI claude');
+  }
+  if (data.is_error) throw new Error(data.result || 'Erreur de la CLI claude');
+  const result = data.structured_output ?? safeJson(data.result);
+  if (!result) throw new Error('La CLI claude n’a pas renvoyé de réponse structurée');
+  return result;
+}
+
 export default {
   name: 'claude-cli',
   async analyze({ imagePath, ...opts }) {
-    const bin = process.env.CLAUDE_BIN || 'claude';
-    const model = process.env.CLAUDE_MODEL || 'sonnet';
-    const prompt = `${buildPrompt(opts)}\n\nFichier image : ${imagePath}`;
-    const args = [
-      '-p', prompt,
-      '--tools', 'Read',
-      '--allowedTools', 'Read',
-      '--strict-mcp-config',
-      '--disable-slash-commands',
-      '--no-session-persistence',
-      '--model', model,
-      '--system-prompt', SYSTEM,
-      '--json-schema', JSON.stringify(ANALYSIS_SCHEMA),
-      '--output-format', 'json',
-    ];
-    const out = await run(bin, args, path.dirname(imagePath));
-    let data;
-    try {
-      data = JSON.parse(out);
-    } catch {
-      throw new Error('Réponse illisible de la CLI claude');
-    }
-    if (data.is_error) throw new Error(data.result || 'Erreur de la CLI claude');
-    const analysis = data.structured_output ?? safeJson(data.result);
-    if (!analysis) throw new Error('La CLI claude n’a pas renvoyé d’analyse structurée');
-    return { ...analysis, _meta: { provider: 'claude-cli', model } };
+    const analysis = await ask({ prompt: buildPrompt(opts), imagePath, schema: ANALYSIS_SCHEMA });
+    return { ...analysis, _meta: { provider: 'claude-cli', model: model() } };
+  },
+  async rank({ imagePath, analysis, items }) {
+    const res = await ask({ prompt: buildRankPrompt({ analysis, items }), imagePath, schema: RANK_SCHEMA });
+    return res.classement || [];
   },
 };
 
