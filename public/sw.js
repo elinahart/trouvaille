@@ -1,6 +1,6 @@
 // Service worker : met en cache l'interface pour un démarrage rapide / hors-ligne.
 // Les appels /api et les images passent toujours par le réseau (données locales à jour).
-const CACHE = 'trouvaille-v1';
+const CACHE = 'trouvaille-v2';
 const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/vinted.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
